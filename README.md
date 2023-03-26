@@ -70,8 +70,8 @@ playerManager.registerSourceManager(new SpotifySourceManager(null, clientId, cli
 ```java
 AudioPlayerManager playerManager = new DefaultAudioPlayerManager();
 
-// create a new AppleMusicSourceManager with the standard providers, countrycode and AudioPlayerManager and register it
-playerManager.registerSourceManager(new AppleMusicSourceManager(null, "us", playerManager));
+// create a new AppleMusicSourceManager with the standard providers, token(pass null for automatic extraction), countrycode and AudioPlayerManager and register it
+playerManager.registerSourceManager(new AppleMusicSourceManager(null, mediaAPIToken , "us", playerManager));
 ```
 
 #### Deezer
@@ -131,6 +131,8 @@ To install this plugin either download the latest release and place it into your
 
 Lavalink supports plugins only in v3.5 and above
 
+> **Note**
+> For a full `application.yml` example see [here](https://github.com/TopiSenpai/LavaSrc/blob/master/application.yml.example)
 
 Replace x.y.z with the latest version number
 ```yaml
@@ -144,8 +146,6 @@ lavalink:
 
 For all supported urls and queries see [here](#supported-urls-and-queries)
 
-For an `application.yml` example see [here](https://github.com/TopiSenpai/LavaSrc/blob/master/application.yml.example)
-
 To get your Spotify clientId & clientSecret go [here](https://developer.spotify.com/dashboard/applications) & then copy them into your `application.yml` like the following.
 
 To get your Yandex Music access token go [here](#yandex-music)
@@ -155,10 +155,11 @@ To get your Yandex Music access token go [here](#yandex-music)
 plugins:
   lavasrc:
     providers: # Custom providers for track loading. This is the default
+      # - "dzisrc:%ISRC%" # Deezer ISRC provider
+      # - "dzsearch:%QUERY%" # Deezer search provider
       - "ytsearch:\"%ISRC%\"" # Will be ignored if track does not have an ISRC. See https://en.wikipedia.org/wiki/International_Standard_Recording_Code
       - "ytsearch:%QUERY%" # Will be used if track has no ISRC or no track could be found for the ISRC
-    # - "dzisrc:%ISRC%" # Deezer ISRC provider
-    # - "scsearch:%QUERY%" you can add multiple other fallback sources here
+      #  you can add multiple other fallback sources here
     sources:
       spotify: true # Enable Spotify source
       applemusic: true # Enable Apple Music source
@@ -168,9 +169,13 @@ plugins:
       clientId: "your client id"
       clientSecret: "your client secret"
       countryCode: "US" # the country code you want to use for filtering the artists top tracks. See https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
+      playlistLoadLimit: 6 # The number of pages at 100 tracks each
+      albumLoadLimit: 6 # The number of pages at 50 tracks each
     applemusic:
       countryCode: "US" # the country code you want to use for filtering the artists top tracks and language. See https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
-      mediaAPIToken: "..." # Can be used to bypass the auto token fetching which is likely to break again in the future
+      # mediaAPIToken: "..." # Can be used to bypass the auto token fetching which is likely to break again in the future
+      playlistLoadLimit: 6 # The number of pages at 300 tracks each
+      albumLoadLimit: 6 # The number of pages at 300 tracks each
     deezer:
       masterDecryptionKey: "your master decryption key" # the master key used for decrypting the deezer tracks. (yes this is not here you need to get it from somewhere else)
     yandexmusic:
@@ -182,7 +187,7 @@ plugins:
 ## Supported URLs and Queries
 
 ### Spotify
-* `spsearch:animals architects`
+* `spsearch:animals architects` (check out [Spotify Search Docs](https://developer.spotify.com/documentation/web-api/reference/#/operations/search) for advanced search queries like isrc & co)
 * `sprec:seed_artists=3ZztVuWxHzNpl0THurTFCv,4MzJMcHQBl9SIYSjwWn8QW&seed_genres=metalcore&seed_tracks=5ofoB8PFmocBXFBEWVb6Vz,6I5zXzSDByTEmYZ7ePVQeB`
   (check out [Spotify Recommendations Docs](https://developer.spotify.com/documentation/web-api/reference/browse/get-recommendations/) for the full query parameter list)
 * https://open.spotify.com/track/0eG08cBeKk0mzykKjw4hcQ

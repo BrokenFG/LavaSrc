@@ -51,33 +51,33 @@ public class YandexMusicAudioTrack extends DelegatedAudioTrack {
         return this.sourceManager;
     }
 
-    private String getDownloadURL(String id) throws IOException, NoSuchAlgorithmException, URISyntaxException {
-        var json = this.sourceManager.getJson(YandexMusicSourceManager.PUBLIC_API_BASE + "/tracks/" + id + "/download-info");
-        if (json.isNull() || json.get("result").values().isEmpty()) {
-            throw new IllegalStateException("No download URL found for track " + id);
-        }
+	private String getDownloadURL(String id) throws IOException, NoSuchAlgorithmException {
+		var json = this.sourceManager.getJson(YandexMusicSourceManager.PUBLIC_API_BASE + "/tracks/" + id + "/download-info");
+		if (json.isNull() || json.get("result").values().isEmpty()) {
+			throw new IllegalStateException("No download URL found for track " + id);
+		}
 
-        var downloadInfoLink = json.get("result").values().get(0).get("downloadInfoUrl").text();
-        var downloadInfo = this.sourceManager.getDownloadStrings(downloadInfoLink);
-        if (downloadInfo == null) {
-            throw new IllegalStateException("No download URL found for track " + id);
-        }
+		var downloadInfoLink = json.get("result").values().get(0).get("downloadInfoUrl").text();
+		var downloadInfo = this.sourceManager.getDownloadStrings(downloadInfoLink);
+		if (downloadInfo == null) {
+			throw new IllegalStateException("No download URL found for track " + id);
+		}
 
-        var doc = Jsoup.parse(downloadInfo, "", Parser.xmlParser());
-        var host = doc.select("host").text();
-        var path = doc.select("path").text();
-        var ts = doc.select("ts").text();
-        var s = doc.select("s").text();
+		var doc = Jsoup.parse(downloadInfo, "", Parser.xmlParser());
+		var host = doc.select("host").text();
+		var path = doc.select("path").text();
+		var ts = doc.select("ts").text();
+		var s = doc.select("s").text();
 
-        var sign = "XGRlBW9FXlekgbPrRHuSiA" + path + s;
-        var md = MessageDigest.getInstance("MD5");
-        var digest = md.digest(sign.getBytes(StandardCharsets.UTF_8));
-        var sb = new StringBuilder();
-        for (byte b : digest) {
-            sb.append(String.format("%02x", b));
-        }
-        var md5 = sb.toString();
+		var sign = "XGRlBW9FXlekgbPrRHuSiA" + path + s;
+		var md = MessageDigest.getInstance("MD5");
+		var digest = md.digest(sign.getBytes(StandardCharsets.UTF_8));
+		var sb = new StringBuilder();
+		for (byte b : digest) {
+			sb.append(String.format("%02x", b));
+		}
+		var md5 = sb.toString();
 
-        return "https://" + host + "/get-mp3/" + md5 + "/" + ts + path;
-    }
+		return "https://" + host + "/get-mp3/" + md5 + "/" + ts + path;
+	}
 }
