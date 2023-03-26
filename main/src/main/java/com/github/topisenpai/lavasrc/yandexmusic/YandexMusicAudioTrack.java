@@ -7,6 +7,7 @@ import com.sedmelluq.discord.lavaplayer.track.AudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.AudioTrackInfo;
 import com.sedmelluq.discord.lavaplayer.track.DelegatedAudioTrack;
 import com.sedmelluq.discord.lavaplayer.track.playback.LocalAudioTrackExecutor;
+import java.net.URISyntaxException;
 import org.jsoup.Jsoup;
 import org.jsoup.parser.Parser;
 
@@ -50,7 +51,7 @@ public class YandexMusicAudioTrack extends DelegatedAudioTrack {
         return this.sourceManager;
     }
 
-    private String getDownloadURL(String id) throws IOException, NoSuchAlgorithmException {
+    private String getDownloadURL(String id) throws IOException, NoSuchAlgorithmException, URISyntaxException {
         var json = this.sourceManager.getJson(YandexMusicSourceManager.PUBLIC_API_BASE + "/tracks/" + id + "/download-info");
         if (json.isNull() || json.get("result").values().isEmpty()) {
             throw new IllegalStateException("No download URL found for track " + id);
