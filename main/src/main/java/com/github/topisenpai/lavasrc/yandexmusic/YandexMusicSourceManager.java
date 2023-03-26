@@ -47,7 +47,7 @@ import java.util.regex.Pattern;
 public class YandexMusicSourceManager implements AudioSourceManager, HttpConfigurable {
 	public static final Pattern URL_PATTERN = Pattern.compile("(https?://)?music\\.yandex\\.ru/(?<type1>artist|album)/(?<identifier>[0-9]+)/?((?<type2>track/)(?<identifier2>[0-9]+)/?)?");
 	public static final Pattern URL_PLAYLIST_PATTERN = Pattern.compile("(https?://)?music\\.yandex\\.ru/users/(?<identifier>[0-9A-Za-z@.-]+)/playlists/(?<identifier2>[0-9]+)/?");
-	public static final String PUBLIC_API_BASE = "https://api.music.yandex.net";
+	public static final String SEARCH_PREFIX = "ymsearch:";
     public static final Pattern RADIO_PATTERN = Pattern.compile("ymradio:(?<identifier>[0-9A-Za-z@.-]+):(?<identifier2>[0-9A-Za-z@.-]+)");
     public static final String PUBLIC_API_BASE = "https://api.music.yandex.net";
 
@@ -122,85 +122,110 @@ public class YandexMusicSourceManager implements AudioSourceManager, HttpConfigu
         }
         return new BasicAudioPlaylist("Yandex Music Search: " + query, tracks, null, true);
     }
-	private AudioItem getSearch(String query) throws IOException {
-		var json = this.getJson(PUBLIC_API_BASE + "/search?text=" + URLEncoder.encode(query, StandardCharsets.UTF_8) + "&type=track&page=0");
-		if (json.isNull() || json.get("result").get("tracks").isNull()) {
-			return AudioReference.NO_TRACK;
-		}
-		var tracks = this.parseTracks(json.get("result").get("tracks").get("results"));
-		if (tracks.isEmpty()) {
-			return AudioReference.NO_TRACK;
-		}
-		return new BasicAudioPlaylist("Yandex Music Search: " + query, tracks, null, true);
-	}
 
-	private AudioItem getAlbum(String id) throws IOException {
-		var json = this.getJson(PUBLIC_API_BASE + "/albums/" + id + "/with-tracks");
-		if (json.isNull() || json.get("result").isNull()) {
-			return AudioReference.NO_TRACK;
-		}
-		var tracks = new ArrayList<AudioTrack>();
-		for (var volume : json.get("result").get("volumes").values()) {
-			for (var track : volume.values()) {
-				tracks.add(this.parseTrack(track));
-			}
-		}
-		if (tracks.isEmpty()) {
-			return AudioReference.NO_TRACK;
-		}
-		return new BasicAudioPlaylist(json.get("result").get("title").text(), tracks, null, false);
-	}
+    private AudioItem getAlbum(String id) throws IOException, URISyntaxException {
+        var json = this.getJson(PUBLIC_API_BASE + "/albums/" + id + "/with-tracks");
+        if (json.isNull() || json.get("result").isNull()) {
+            return AudioReference.NO_TRACK;
+        }
+        var tracks = new ArrayList<AudioTrack>();
+        for (var volume : json.get("result").get("volumes").values()) {
+            for (var track : volume.values()) {
+                tracks.add(this.parseTrack(track));
+            }
+        }
+        if (tracks.isEmpty()) {
+            return AudioReference.NO_TRACK;
+        }
+        return new BasicAudioPlaylist(json.get("result").get("title").text(), tracks, null, false);
+    }
 
-	private AudioItem getTrack(String id) throws IOException {
-		var json = this.getJson(PUBLIC_API_BASE + "/tracks/" + id);
-		if (json.isNull() || json.get("result").values().get(0).get("available").text().equals("false")) {
-			return AudioReference.NO_TRACK;
-		}
-		return this.parseTrack(json.get("result").values().get(0));
-	}
+    private AudioItem getTrack(String id) throws IOException, URISyntaxException {
+        var json = this.getJson(PUBLIC_API_BASE + "/tracks/" + id);
+        if (json.isNull() || json.get("result").values().get(0).get("available").text().equals("false")) {
+            return AudioReference.NO_TRACK;
+        }
+        return this.parseTrack(json.get("result").values().get(0));
+    }
 
-	private AudioItem getArtist(String id) throws IOException {
-		var json = this.getJson(PUBLIC_API_BASE + "/artists/" + id + "/tracks?page-size=10");
-		if (json.isNull() || json.get("result").values().isEmpty()) {
-			return AudioReference.NO_TRACK;
-		}
-		var artistName = this.getJson(PUBLIC_API_BASE + "/artists/" + id).get("result").get("artist").get("name").text();
-		var tracks = this.parseTracks(json.get("result").get("tracks"));
-		if (tracks.isEmpty()) {
-			return AudioReference.NO_TRACK;
-		}
-		return new BasicAudioPlaylist(artistName + "'s Top Tracks", tracks, null, false);
-	}
+    private AudioItem getArtist(String id) throws IOException, URISyntaxException {
+        var json = this.getJson(PUBLIC_API_BASE + "/artists/" + id + "/tracks?page-size=10");
+        if (json.isNull() || json.get("result").values().isEmpty()) {
+            return AudioReference.NO_TRACK;
+        }
+        var artistName = this.getJson(PUBLIC_API_BASE + "/artists/" + id).get("result").get("artist").get("name").text();
+        var tracks = this.parseTracks(json.get("result").get("tracks"));
+        if (tracks.isEmpty()) {
+            return AudioReference.NO_TRACK;
+        }
+        return new BasicAudioPlaylist(artistName + "'s Top Tracks", tracks, null, false);
+    }
 
-	private AudioItem getPlaylist(String userString, String id) throws IOException {
-		var json = this.getJson(PUBLIC_API_BASE + "/users/" + userString + "/playlists/" + id);
-		if (json.isNull() || json.get("result").isNull() || json.get("result").get("tracks").values().isEmpty()) {
-			return AudioReference.NO_TRACK;
-		}
-		var tracks = new ArrayList<AudioTrack>();
-		for (var track : json.get("result").get("tracks").values()) {
-			tracks.add(this.parseTrack(track.get("track")));
-		}
-		if (tracks.isEmpty()) {
-			return AudioReference.NO_TRACK;
-		}
-		var playlist_title = json.get("result").get("kind").text().equals("3") ? "Liked songs" : json.get("result").get("title").text();
-		return new BasicAudioPlaylist(playlist_title, tracks, null, false);
-	}
+    public AudioItem getPlaylist(String userString, String id) throws IOException, URISyntaxException {
+        var json = this.getJson(PUBLIC_API_BASE + "/users/" + userString + "/playlists/" + id);
+        if (json.isNull() || json.get("result").isNull() || json.get("result").get("tracks").values().isEmpty()) {
+            return AudioReference.NO_TRACK;
+        }
+        var tracks = new ArrayList<AudioTrack>();
+        for (var track : json.get("result").get("tracks").values()) {
+            tracks.add(this.parseTrack(track.get("track")));
+        }
+        if (tracks.isEmpty()) {
+            return AudioReference.NO_TRACK;
+        }
+        var playlist_title = json.get("result").get("kind").text().equals("3") ? "Liked songs" : json.get("result").get("title").text();
+        return new BasicAudioPlaylist(playlist_title, tracks, null, false);
+    }
 
-	public JsonBrowser getJson(String uri) throws IOException {
-		var request = new HttpGet(uri);
-		request.setHeader("Accept", "application/json");
-		request.setHeader("Authorization", "OAuth " + this.accessToken);
-		return HttpClientTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
-	}
+    public AudioItem getRadio(String type, String tag) throws IOException, URISyntaxException {
+        var station = type + ":" + tag;
+        var json = this.getJson(PUBLIC_API_BASE + "/rotor/station/" + station + "/tracks");
+        if (json.isNull() || json.get("result").isNull() || json.get("result").get("sequence").values().isEmpty()) {
+            return AudioReference.NO_TRACK;
+        }
+        var tracks = this.parseTracks(json.get("result").get("sequence"), true);
+        var batchId = json.get("result").get("batchId").text();
+        var station_json = this.getJson(PUBLIC_API_BASE + "/rotor/station/" + station + "/info");
+        var station_name = station_json.get("result").values().get(0).get("rupTitle").text();
+        return new YandexMusicAudioRadio(station_name, station, batchId, tracks, this);
+    }
 
-	public String getDownloadStrings(String uri) throws IOException {
-		var request = new HttpGet(uri);
-		request.setHeader("Accept", "application/json");
-		request.setHeader("Authorization", "OAuth " + this.accessToken);
-		return HttpClientTools.fetchResponseLines(this.httpInterfaceManager.getInterface(), request, "downloadinfo-xml-page")[0];
-	}
+    public JsonBrowser getJson(String uri) throws IOException, URISyntaxException {
+        return getJson(new URI(uri));
+    }
+
+    public JsonBrowser getJson(String uri, List<NameValuePair> params) throws IOException, URISyntaxException {
+        return getJson(buildUriWithParams(uri, params));
+    }
+
+    public JsonBrowser getJson(URI uri) throws IOException, URISyntaxException {
+        var request = new HttpGet(uri);
+        request.setHeader("Accept", "application/json");
+        request.setHeader("Authorization", "OAuth " + this.accessToken);
+        return HttpClientTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
+    }
+
+    public JsonBrowser getJson(URI uri, Map<String, String> entity) throws IOException {
+        var request = new HttpPost(uri);
+        request.setHeader("Accept", "application/json");
+        request.setHeader("Authorization", "OAuth " + this.accessToken);
+        request.setHeader("Content-Type", "application/json");
+        ObjectMapper mapper = new ObjectMapper();
+        request.setEntity(new StringEntity(mapper.writeValueAsString(entity), ContentType.APPLICATION_JSON));
+        System.out.println(mapper.writeValueAsString(entity));
+        return HttpClientTools.fetchResponseAsJson(this.httpInterfaceManager.getInterface(), request);
+    }
+
+    private URI buildUriWithParams(String uri, List<NameValuePair> params) throws URISyntaxException {
+        return new URIBuilder(uri).addParameters(params).build();
+    }
+
+    public String getDownloadStrings(String uri) throws IOException {
+        var request = new HttpGet(uri);
+        request.setHeader("Accept", "application/json");
+        request.setHeader("Authorization", "OAuth " + this.accessToken);
+        return HttpClientTools.fetchResponseLines(this.httpInterfaceManager.getInterface(), request, "downloadinfo-xml-page")[0];
+    }
 
     private List<AudioTrack> parseTracks(JsonBrowser json) {
         return parseTracks(json, false);
@@ -214,7 +239,6 @@ public class YandexMusicSourceManager implements AudioSourceManager, HttpConfigu
                 tracks.add(parsedTrack);
             }
         }
-        System.out.println(tracks.size());
         return tracks;
     }
 
@@ -222,7 +246,6 @@ public class YandexMusicSourceManager implements AudioSourceManager, HttpConfigu
         if (!json.get("available").asBoolean(false) || json.get("albums").values().isEmpty()) {
             return null;
         }
-        System.out.println(2);
         var id = json.get("id").text();
         var artist = json.get("major").get("name").text().equals("PODCASTS") ? json.get("albums").values().get(0).get("title").text() : json.get("artists").values().get(0).get("name").text();
         var coverUri = json.get("albums").values().get(0).get("coverUri").text();
